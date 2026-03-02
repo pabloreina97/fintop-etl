@@ -104,10 +104,14 @@ def load_to_database(client, transactions: list, account_id: str) -> tuple[list,
 
     # Consultar qué transaction_ids ya existen para descontar el overlap
     tx_ids = [tx["transaction_id"] for tx in transactions]
-    existing = client.table("transactions_raw").select("transaction_id").eq(
-        "account_id", account_id
-    ).in_("transaction_id", tx_ids).execute()
-    existing_ids = {row["transaction_id"] for row in existing.data}
+    existing_ids = set()
+    batch_size = 200
+    for i in range(0, len(tx_ids), batch_size):
+        batch = tx_ids[i:i + batch_size]
+        existing = client.table("transactions_raw").select("transaction_id").eq(
+            "account_id", account_id
+        ).in_("transaction_id", batch).execute()
+        existing_ids.update(row["transaction_id"] for row in existing.data)
 
     rows = [
         {
@@ -318,6 +322,7 @@ def detect_internal_transfers(client, user_id: str, categories_map: dict) -> dic
     - Mismo importe pero signo opuesto
     - Misma fecha (booking_date)
     - Sin categoría asignada aún
+    Solo analiza transacciones de los últimos 30 días para evitar queries excesivas.
     """
     transfer_category_id = categories_map.get("Transferencia entre cuentas")
     if not transfer_category_id:
@@ -329,23 +334,32 @@ def detect_internal_transfers(client, user_id: str, categories_map: dict) -> dic
     if len(account_ids) < 2:
         return {"detected": 0}
 
-    # Obtener transacciones sin categoría del usuario
+    # Solo buscar en transacciones recientes (últimos 30 días)
+    cutoff_date = (date.today() - timedelta(days=30)).isoformat()
+
+    # Obtener transacciones recientes del usuario
     transactions_result = client.table("transactions_raw").select(
         "id, account_id, booking_date, amount"
-    ).in_("account_id", account_ids).execute()
+    ).in_("account_id", account_ids).gte("booking_date", cutoff_date).execute()
 
-    # Obtener categorías existentes
+    # Obtener categorías existentes en lotes para evitar URLs demasiado largas
     tx_ids = [t["id"] for t in transactions_result.data]
     if not tx_ids:
         return {"detected": 0}
 
-    user_data_result = client.table("transactions_user").select(
-        "transaction_raw_id, auto_category_id, category_id"
-    ).in_("transaction_raw_id", tx_ids).execute()
+    user_data_rows = []
+    batch_size = 200
+    for i in range(0, len(tx_ids), batch_size):
+        batch = tx_ids[i:i + batch_size]
+        result = client.table("transactions_user").select(
+            "transaction_raw_id, auto_category_id, category_id"
+        ).in_("transaction_raw_id", batch).execute()
+        user_data_rows.extend(result.data)
+    user_data_result_data = user_data_rows
 
     categorized = {
         row["transaction_raw_id"]: row
-        for row in user_data_result.data
+        for row in user_data_result_data
     }
 
     # Indexar transacciones por (fecha, monto) para búsqueda eficiente
