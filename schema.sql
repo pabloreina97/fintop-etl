@@ -98,6 +98,7 @@ CREATE TABLE transactions_user (
     transaction_raw_id UUID UNIQUE NOT NULL REFERENCES transactions_raw(id) ON DELETE CASCADE,
     auto_category_id UUID REFERENCES categories(id),  -- ETL escribe aqui
     category_id UUID REFERENCES categories(id),        -- Usuario sobrescribe aqui
+    custom_date DATE,                                   -- Usuario sobrescribe fecha aqui
     notes TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -132,7 +133,7 @@ SELECT
     r.account_id,
     a.user_id,
     r.transaction_id,
-    r.booking_date,
+    COALESCE(u.custom_date, r.booking_date) AS booking_date,
     r.value_date,
     r.amount,
     r.currency,
@@ -165,7 +166,7 @@ SELECT
     r.account_id,
     a.user_id,
     r.transaction_id,
-    r.booking_date,
+    COALESCE(u.custom_date, r.booking_date) AS booking_date,
     r.value_date,
     s.amount,                    -- Amount del split
     r.currency,
@@ -183,6 +184,7 @@ SELECT
     GREATEST(r.updated_at, s.updated_at) AS updated_at
 FROM transactions_raw r
 JOIN accounts a ON a.id = r.account_id
+LEFT JOIN transactions_user u ON u.transaction_raw_id = r.id
 JOIN transaction_splits s ON s.transaction_raw_id = r.id
 LEFT JOIN categories c ON c.id = s.category_id
 WHERE a.user_id = auth.uid();
