@@ -138,9 +138,15 @@ def load_to_database(client, transactions: list, account_id: str) -> tuple[list,
         for tx in transactions
     ]
 
+    # Excluir raw_data de la respuesta para evitar que PostgREST falle
+    # con respuestas demasiado grandes ("JSON could not be generated")
     result = client.table("transactions_raw").upsert(
         rows,
         on_conflict="account_id,transaction_id",
+    ).select(
+        "id, account_id, transaction_id, booking_date, value_date, "
+        "amount, currency, description, creditor_name, debtor_name, "
+        "ultimate_debtor, bank_transaction_code, proprietary_code, purpose_code"
     ).execute()
 
     new_count = len(result.data) - len(existing_ids)
