@@ -138,19 +138,29 @@ def load_to_database(client, transactions: list, account_id: str) -> tuple[list,
         for tx in transactions
     ]
 
-    # Excluir raw_data de la respuesta para evitar que PostgREST falle
-    # con respuestas demasiado grandes ("JSON could not be generated")
-    result = client.table("transactions_raw").upsert(
+    # Usar returning=minimal para evitar que PostgREST falle con raw_data grande
+    client.table("transactions_raw").upsert(
         rows,
         on_conflict="account_id,transaction_id",
-    ).select(
+        returning="minimal",
+    ).execute()
+
+    # Consultar las transacciones upsertadas sin raw_data
+    non_raw_columns = (
         "id, account_id, transaction_id, booking_date, value_date, "
         "amount, currency, description, creditor_name, debtor_name, "
         "ultimate_debtor, bank_transaction_code, proprietary_code, purpose_code"
-    ).execute()
+    )
+    upserted = []
+    for i in range(0, len(tx_ids), batch_size):
+        batch = tx_ids[i:i + batch_size]
+        resp = client.table("transactions_raw").select(non_raw_columns).eq(
+            "account_id", account_id
+        ).in_("transaction_id", batch).execute()
+        upserted.extend(resp.data)
 
-    new_count = len(result.data) - len(existing_ids)
-    return result.data, new_count
+    new_count = len(upserted) - len(existing_ids)
+    return upserted, new_count
 
 
 def get_categorization_rules(client, user_id: str | None) -> list:
