@@ -124,11 +124,6 @@ INSERT INTO categorization_rules (pattern, match_type, field, category_id, prior
 ('guarderia', 'contains', 'description', (SELECT id FROM categories WHERE name = 'Guardería' AND user_id IS NULL), 10),
 ('peques', 'contains', 'description', (SELECT id FROM categories WHERE name = 'Guardería' AND user_id IS NULL), 10);
 
--- Transferencias internas (no computables)
-INSERT INTO categorization_rules (pattern, match_type, field, category_id, priority) VALUES
-('pago transferencias', 'contains', 'description', (SELECT id FROM categories WHERE name = 'Transferencia entre cuentas' AND user_id IS NULL), 20),
-('traspaso', 'contains', 'description', (SELECT id FROM categories WHERE name = 'Transferencia entre cuentas' AND user_id IS NULL), 20);
-
 -- Ahorro e inversiones (no computable)
 INSERT INTO categorization_rules (pattern, match_type, field, category_id, priority) VALUES
 ('myinvestor', 'contains', 'creditor_name', (SELECT id FROM categories WHERE name = 'Ahorro e inversiones' AND user_id IS NULL), 15),
