@@ -11,6 +11,10 @@ CREATE TABLE accounts (
     account_name TEXT,          -- Alias que pone el usuario
     iban TEXT,
     last_sync_at TIMESTAMPTZ,
+    balance DECIMAL(12,2),
+    balance_available DECIMAL(12,2),
+    balance_currency TEXT DEFAULT 'EUR',
+    balance_updated_at TIMESTAMPTZ,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()

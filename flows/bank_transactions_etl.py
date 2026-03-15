@@ -323,6 +323,47 @@ def auto_categorize(client, transactions: list, user_id: str | None, categories_
     }
 
 
+def fetch_balances(token: str, gocardless_account_id: str) -> list:
+    """Obtiene los saldos de la cuenta desde GoCardless."""
+    try:
+        response = HTTP_CLIENT.get(
+            f"{GOCARDLESS_BASE_URL}/accounts/{gocardless_account_id}/balances/",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        response.raise_for_status()
+        return response.json().get("balances", [])
+    except httpx.HTTPStatusError as e:
+        print(f"  Error obteniendo saldos: {e.response.status_code}")
+        return []
+
+
+def update_account_balance(client, account_id: str, balances: list):
+    """Actualiza el saldo de la cuenta en Supabase."""
+    if not balances:
+        return
+
+    update_data = {"balance_updated_at": datetime.now().isoformat()}
+
+    for bal in balances:
+        balance_type = bal.get("balanceType", "")
+        amount = bal.get("balanceAmount", {})
+
+        if balance_type in ("closingBooked", "interimBooked"):
+            update_data["balance"] = float(amount.get("amount", 0))
+            update_data["balance_currency"] = amount.get("currency", "EUR")
+        elif balance_type in ("interimAvailable", "closingAvailable"):
+            update_data["balance_available"] = float(amount.get("amount", 0))
+            update_data["balance_currency"] = amount.get("currency", "EUR")
+
+    # Si no encontró tipos específicos, usar el primer saldo disponible
+    if "balance" not in update_data and balances:
+        first = balances[0].get("balanceAmount", {})
+        update_data["balance"] = float(first.get("amount", 0))
+        update_data["balance_currency"] = first.get("currency", "EUR")
+
+    client.table("accounts").update(update_data).eq("id", account_id).execute()
+
+
 def update_account_last_sync(client, account_id: str):
     """Actualiza la fecha de última sincronización de la cuenta."""
     client.table("accounts").update({
@@ -466,6 +507,19 @@ def sync_account(client, token: str, account: dict, categories_map: dict) -> tup
 
         stats = auto_categorize(client, upserted, user_id, categories_map)
         print(f"[{account_name}] Auto-categorizadas: {stats['categorized']}/{stats['total']} ({stats['percentage']}%)")
+
+    # Actualizar saldo desde GoCardless
+    balances = fetch_balances(token, gc_account_id)
+    if balances:
+        update_account_balance(client, account_id, balances)
+        bal_info = next(
+            (b for b in balances if b.get("balanceType") in ("closingBooked", "interimBooked")),
+            balances[0],
+        )
+        amount = bal_info.get("balanceAmount", {})
+        print(f"[{account_name}] Saldo: {amount.get('amount')} {amount.get('currency', 'EUR')}")
+    else:
+        print(f"[{account_name}] No se pudo obtener el saldo")
 
     update_account_last_sync(client, account_id)
     return transactions_added, last_sync_date
