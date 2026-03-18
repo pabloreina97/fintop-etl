@@ -6,7 +6,7 @@ from datetime import date, datetime, timedelta
 import httpx
 from supabase import create_client
 
-from telegram import notify_etl_error, notify_etl_success
+from telegram import notify_etl_error, notify_etl_success, notify_reauth_required
 
 # Cliente HTTP con timeout más largo
 HTTP_CLIENT = httpx.Client(timeout=60.0)
@@ -39,6 +39,76 @@ def get_access_token() -> str:
     )
     response.raise_for_status()
     return response.json()["access"]
+
+
+def get_account_metadata(token: str, gocardless_account_id: str) -> dict:
+    """Obtiene metadata de la cuenta desde GoCardless (institution_id, status, etc.)."""
+    response = HTTP_CLIENT.get(
+        f"{GOCARDLESS_BASE_URL}/accounts/{gocardless_account_id}/",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+def create_end_user_agreement(token: str, institution_id: str) -> str:
+    """Crea un End User Agreement en GoCardless. Retorna el agreement_id."""
+    response = HTTP_CLIENT.post(
+        f"{GOCARDLESS_BASE_URL}/agreements/enduser/",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "max_historical_days": 90,
+            "access_valid_for_days": 30,
+            "institution_id": institution_id,
+        },
+    )
+    response.raise_for_status()
+    return response.json()["id"]
+
+
+def create_requisition(token: str, institution_id: str, agreement_id: str, gc_account_id: str) -> dict:
+    """Crea una Requisition en GoCardless. Retorna los datos incluyendo el link."""
+    redirect = os.environ.get("GC_REDIRECT_URL", "https://example.com/callback")
+    reference = f"fintop-{datetime.now().strftime('%Y%m%d%H%M%S')}-{gc_account_id[:8]}"
+
+    response = HTTP_CLIENT.post(
+        f"{GOCARDLESS_BASE_URL}/requisitions/",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "redirect": redirect,
+            "institution_id": institution_id,
+            "agreement": agreement_id,
+            "reference": reference,
+        },
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+def handle_expired_agreement(token: str, account: dict):
+    """
+    Maneja una cuenta con acuerdo expirado:
+    1. Obtiene institution_id de la cuenta
+    2. Crea nuevo End User Agreement
+    3. Crea nueva Requisition
+    4. Envía link de re-autorización por Telegram
+    """
+    gc_account_id = account["gocardless_account_id"]
+    account_name = account.get("account_name") or account.get("bank_name") or gc_account_id
+
+    metadata = get_account_metadata(token, gc_account_id)
+    institution_id = metadata["institution_id"]
+    print(f"[{account_name}] Institution: {institution_id}")
+
+    agreement_id = create_end_user_agreement(token, institution_id)
+    print(f"[{account_name}] Agreement creado: {agreement_id}")
+
+    requisition = create_requisition(token, institution_id, agreement_id, gc_account_id)
+    link = requisition["link"]
+    print(f"[{account_name}] Requisition creada: {requisition['id']}")
+    print(f"[{account_name}] Link: {link}")
+
+    notify_reauth_required(account_name, link)
 
 
 def get_active_accounts(client) -> list:
@@ -495,7 +565,14 @@ def sync_account(client, token: str, account: dict, categories_map: dict) -> tup
         last_sync_date = None
         print(f"[{account_name}] Primera sincronización (completa)")
 
-    raw = fetch_transactions(token, gc_account_id, last_sync_date)
+    try:
+        raw = fetch_transactions(token, gc_account_id, last_sync_date)
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 401:
+            print(f"[{account_name}] Acceso expirado (401), iniciando re-autorización...")
+            handle_expired_agreement(token, account)
+            return 0, last_sync_date
+        raise
     print(f"[{account_name}] Descargadas {len(raw)} transacciones")
 
     transactions_added = 0

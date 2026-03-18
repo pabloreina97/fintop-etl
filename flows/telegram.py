@@ -62,6 +62,17 @@ def notify_etl_success(accounts_count: int, transactions_added: int = 0, transfe
     send_telegram_message(message)
 
 
+def notify_reauth_required(account_name: str, link: str):
+    """Notifica que una cuenta necesita re-autorización bancaria."""
+    message = (
+        f"<b>🔑 Re-autorización necesaria</b>\n\n"
+        f"🏦 Cuenta: {account_name}\n\n"
+        f"El acceso ha expirado. Autoriza de nuevo:\n\n"
+        f"{link}"
+    )
+    send_telegram_message(message)
+
+
 def notify_etl_error(error: str):
     """Notifica que el ETL falló."""
     timestamp = datetime.now().strftime("%d/%m/%Y %H:%M")
