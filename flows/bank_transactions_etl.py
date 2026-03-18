@@ -640,24 +640,29 @@ def main():
         if expired_accounts:
             handle_expired_agreements(token, expired_accounts)
 
-        # Detectar transferencias internas por usuario
-        user_ids = set(account["user_id"] for account in accounts)
-        print(f"Detectando transferencias internas para {len(user_ids)} usuario(s)...")
+        synced_accounts = [a for a in accounts if a not in expired_accounts]
 
-        total_detected = 0
-        for user_id in user_ids:
-            stats = detect_internal_transfers(client, user_id, categories_map)
-            total_detected += stats["detected"]
+        if synced_accounts:
+            # Detectar transferencias internas por usuario
+            user_ids = set(a["user_id"] for a in synced_accounts)
+            print(f"Detectando transferencias internas para {len(user_ids)} usuario(s)...")
 
-        if total_detected > 0:
-            print(f"Transferencias internas detectadas: {total_detected}")
+            total_detected = 0
+            for user_id in user_ids:
+                stats = detect_internal_transfers(client, user_id, categories_map)
+                total_detected += stats["detected"]
 
-        print("ETL completado")
-        notify_etl_success(
-            accounts_count=len(accounts),
-            transactions_added=total_transactions,
-            transfers_detected=total_detected,
-        )
+            if total_detected > 0:
+                print(f"Transferencias internas detectadas: {total_detected}")
+
+            print("ETL completado")
+            notify_etl_success(
+                accounts_count=len(synced_accounts),
+                transactions_added=total_transactions,
+                transfers_detected=total_detected,
+            )
+        else:
+            print("ETL completado (todas las cuentas requieren re-autorización)")
 
     except Exception as e:
         error_msg = f"{type(e).__name__}: {e}\n{traceback.format_exc()}"
