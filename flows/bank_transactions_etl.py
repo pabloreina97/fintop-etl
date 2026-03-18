@@ -58,7 +58,7 @@ def create_end_user_agreement(token: str, institution_id: str) -> str:
         headers={"Authorization": f"Bearer {token}"},
         json={
             "max_historical_days": 90,
-            "access_valid_for_days": 30,
+            "access_valid_for_days": 90,
             "institution_id": institution_id,
         },
     )
@@ -85,30 +85,36 @@ def create_requisition(token: str, institution_id: str, agreement_id: str, gc_ac
     return response.json()
 
 
-def handle_expired_agreement(token: str, account: dict):
+def handle_expired_agreements(token: str, expired_accounts: list):
     """
-    Maneja una cuenta con acuerdo expirado:
-    1. Obtiene institution_id de la cuenta
-    2. Crea nuevo End User Agreement
-    3. Crea nueva Requisition
-    4. Envía link de re-autorización por Telegram
+    Maneja cuentas con acuerdo expirado, agrupando por institution_id
+    para crear un solo agreement + requisition por banco.
     """
-    gc_account_id = account["gocardless_account_id"]
-    account_name = account.get("account_name") or account.get("bank_name") or gc_account_id
+    # Agrupar cuentas por institution_id
+    by_institution: dict[str, list[str]] = {}
+    for account in expired_accounts:
+        gc_account_id = account["gocardless_account_id"]
+        account_name = account.get("account_name") or account.get("bank_name") or gc_account_id
+        metadata = get_account_metadata(token, gc_account_id)
+        institution_id = metadata["institution_id"]
+        if institution_id not in by_institution:
+            by_institution[institution_id] = []
+        by_institution[institution_id].append(account_name)
 
-    metadata = get_account_metadata(token, gc_account_id)
-    institution_id = metadata["institution_id"]
-    print(f"[{account_name}] Institution: {institution_id}")
+    for institution_id, account_names in by_institution.items():
+        print(f"[{institution_id}] Re-autorizando para: {', '.join(account_names)}")
 
-    agreement_id = create_end_user_agreement(token, institution_id)
-    print(f"[{account_name}] Agreement creado: {agreement_id}")
+        agreement_id = create_end_user_agreement(token, institution_id)
+        print(f"[{institution_id}] Agreement creado: {agreement_id}")
 
-    requisition = create_requisition(token, institution_id, agreement_id, gc_account_id)
-    link = requisition["link"]
-    print(f"[{account_name}] Requisition creada: {requisition['id']}")
-    print(f"[{account_name}] Link: {link}")
+        gc_id = expired_accounts[0]["gocardless_account_id"]
+        requisition = create_requisition(token, institution_id, agreement_id, gc_id)
+        link = requisition["link"]
+        print(f"[{institution_id}] Requisition creada: {requisition['id']}")
+        print(f"[{institution_id}] Link: {link}")
 
-    notify_reauth_required(account_name, link)
+        names = ", ".join(account_names)
+        notify_reauth_required(names, link)
 
 
 def get_active_accounts(client) -> list:
@@ -569,9 +575,8 @@ def sync_account(client, token: str, account: dict, categories_map: dict) -> tup
         raw = fetch_transactions(token, gc_account_id, last_sync_date)
     except httpx.HTTPStatusError as e:
         if e.response.status_code == 401:
-            print(f"[{account_name}] Acceso expirado (401), iniciando re-autorización...")
-            handle_expired_agreement(token, account)
-            return 0, last_sync_date
+            print(f"[{account_name}] Acceso expirado (401)")
+            return None, last_sync_date
         raise
     print(f"[{account_name}] Descargadas {len(raw)} transacciones")
 
@@ -622,11 +627,18 @@ def main():
 
         total_transactions = 0
         earliest_date = None
+        expired_accounts = []
         for account in accounts:
             added, date_from = sync_account(client, token, account, categories_map)
+            if added is None:
+                expired_accounts.append(account)
+                continue
             total_transactions += added
             if date_from and (earliest_date is None or date_from < earliest_date):
                 earliest_date = date_from
+
+        if expired_accounts:
+            handle_expired_agreements(token, expired_accounts)
 
         # Detectar transferencias internas por usuario
         user_ids = set(account["user_id"] for account in accounts)
