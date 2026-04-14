@@ -1,5 +1,6 @@
 import os
 import re
+import time
 import traceback
 from datetime import date, datetime, timedelta
 
@@ -401,16 +402,26 @@ def auto_categorize(client, transactions: list, user_id: str | None, categories_
 
 def fetch_balances(token: str, gocardless_account_id: str) -> list:
     """Obtiene los saldos de la cuenta desde GoCardless."""
-    try:
-        response = HTTP_CLIENT.get(
-            f"{GOCARDLESS_BASE_URL}/accounts/{gocardless_account_id}/balances/",
-            headers={"Authorization": f"Bearer {token}"},
-        )
-        response.raise_for_status()
-        return response.json().get("balances", [])
-    except httpx.HTTPStatusError as e:
-        print(f"  Error obteniendo saldos: {e.response.status_code}")
-        return []
+    url = f"{GOCARDLESS_BASE_URL}/accounts/{gocardless_account_id}/balances/"
+    headers = {"Authorization": f"Bearer {token}"}
+
+    last_exc = None
+    for attempt in range(3):
+        if attempt > 0:
+            time.sleep(2 ** (attempt - 1))  # backoff: 1s, 2s
+        try:
+            response = HTTP_CLIENT.get(url, headers=headers, timeout=20.0)
+            response.raise_for_status()
+            return response.json().get("balances", [])
+        except httpx.HTTPStatusError as e:
+            print(f"  Error obteniendo saldos: {e.response.status_code}")
+            return []
+        except httpx.TimeoutException as e:
+            last_exc = e
+            print(f"  Timeout obteniendo saldos (intento {attempt + 1}/3)")
+
+    print(f"  No se pudo obtener el saldo tras 3 intentos: {last_exc}")
+    return []
 
 
 def update_account_balance(client, account_id: str, balances: list):
