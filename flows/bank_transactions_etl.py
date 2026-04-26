@@ -7,7 +7,7 @@ from datetime import date, datetime, timedelta
 import httpx
 from supabase import create_client
 
-from telegram import notify_etl_error, notify_etl_success, notify_reauth_required
+from telegram import notify_etl_error, notify_reauth_required
 
 # Cliente HTTP con timeout más largo
 HTTP_CLIENT = httpx.Client(timeout=60.0)
@@ -628,7 +628,6 @@ def main():
 
         if not accounts:
             print("No hay cuentas activas para sincronizar")
-            notify_etl_success(accounts_count=0)
             return
 
         print(f"Sincronizando {len(accounts)} cuenta(s)")
@@ -667,11 +666,6 @@ def main():
                 print(f"Transferencias internas detectadas: {total_detected}")
 
             print("ETL completado")
-            notify_etl_success(
-                accounts_count=len(synced_accounts),
-                transactions_added=total_transactions,
-                transfers_detected=total_detected,
-            )
         else:
             print("ETL completado (todas las cuentas requieren re-autorización)")
 

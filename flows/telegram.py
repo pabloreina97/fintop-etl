@@ -44,24 +44,6 @@ def send_telegram_message(message: str, parse_mode: str = "HTML") -> bool:
         return False
 
 
-def notify_etl_success(accounts_count: int, transactions_added: int = 0, transfers_detected: int = 0, date_from: str | None = None):
-    """Notifica que el ETL completó exitosamente."""
-    message = f"<b>✅ Carga de transacciones completada</b>\n\n"
-
-    if date_from:
-        message += f"📅 Desde: {date_from}\n"
-
-    message += (
-        f"🏦 Cuentas sincronizadas: {accounts_count}\n"
-        f"💳 Transacciones añadidas: {transactions_added}\n"
-    )
-
-    if transfers_detected > 0:
-        message += f"🔄 Transferencias internas detectadas: {transfers_detected}\n"
-
-    send_telegram_message(message)
-
-
 def notify_reauth_required(account_name: str, link: str):
     """Notifica que una cuenta necesita re-autorización bancaria."""
     message = (
