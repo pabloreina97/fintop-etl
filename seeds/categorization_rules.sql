@@ -137,3 +137,88 @@ INSERT INTO categorization_rules (pattern, match_type, field, category_id, prior
 INSERT INTO categorization_rules (pattern, match_type, field, category_id, priority) VALUES
 ('nomina', 'contains', 'description', (SELECT id FROM categories WHERE name = 'Nómina' AND user_id IS NULL), 5),
 ('pag nominas', 'contains', 'description', (SELECT id FROM categories WHERE name = 'Nómina' AND user_id IS NULL), 5);
+
+-- Supermercados (nuevos)
+INSERT INTO categorization_rules (pattern, match_type, field, category_id, priority) VALUES
+('coviran', 'contains', 'description', (SELECT id FROM categories WHERE name = 'Supermercado' AND user_id IS NULL), 10),
+('mas ahorro', 'contains', 'description', (SELECT id FROM categories WHERE name = 'Supermercado' AND user_id IS NULL), 10);
+
+-- Restaurantes (nuevos)
+INSERT INTO categorization_rules (pattern, match_type, field, category_id, priority) VALUES
+('piquito de oro', 'contains', 'description', (SELECT id FROM categories WHERE name = 'Restaurantes' AND user_id IS NULL), 10),
+('caracoles noreña', 'contains', 'description', (SELECT id FROM categories WHERE name = 'Restaurantes' AND user_id IS NULL), 10),
+('medano bar', 'contains', 'description', (SELECT id FROM categories WHERE name = 'Restaurantes' AND user_id IS NULL), 10),
+('sana locura', 'contains', 'description', (SELECT id FROM categories WHERE name = 'Restaurantes' AND user_id IS NULL), 10);
+
+-- Cafeterías (nuevas)
+INSERT INTO categorization_rules (pattern, match_type, field, category_id, priority) VALUES
+('yogurberry', 'contains', 'description', (SELECT id FROM categories WHERE name = 'Cafeterías' AND user_id IS NULL), 10),
+('llaollao', 'contains', 'description', (SELECT id FROM categories WHERE name = 'Cafeterías' AND user_id IS NULL), 10),
+('heladeria', 'contains', 'description', (SELECT id FROM categories WHERE name = 'Cafeterías' AND user_id IS NULL), 10),
+('pasteleria roldan', 'contains', 'description', (SELECT id FROM categories WHERE name = 'Cafeterías' AND user_id IS NULL), 10);
+
+-- Comida a domicilio
+INSERT INTO categorization_rules (pattern, match_type, field, category_id, priority) VALUES
+('glovo', 'contains', 'description', (SELECT id FROM categories WHERE name = 'Comida a domicilio' AND user_id IS NULL), 10),
+('just eat', 'contains', 'description', (SELECT id FROM categories WHERE name = 'Comida a domicilio' AND user_id IS NULL), 10),
+('uber eats', 'contains', 'description', (SELECT id FROM categories WHERE name = 'Comida a domicilio' AND user_id IS NULL), 10),
+('deliveroo', 'contains', 'description', (SELECT id FROM categories WHERE name = 'Comida a domicilio' AND user_id IS NULL), 10);
+
+-- Gasolina (nueva)
+INSERT INTO categorization_rules (pattern, match_type, field, category_id, priority) VALUES
+('estacion san rafa', 'contains', 'description', (SELECT id FROM categories WHERE name = 'Gasolina' AND user_id IS NULL), 10);
+
+-- Transporte público (nuevo)
+INSERT INTO categorization_rules (pattern, match_type, field, category_id, priority) VALUES
+('autotransportes', 'contains', 'description', (SELECT id FROM categories WHERE name = 'Transporte público' AND user_id IS NULL), 10),
+('aucorsa', 'contains', 'description', (SELECT id FROM categories WHERE name = 'Transporte público' AND user_id IS NULL), 10);
+
+-- Parking
+INSERT INTO categorization_rules (pattern, match_type, field, category_id, priority) VALUES
+('cordoba iv-colon', 'contains', 'description', (SELECT id FROM categories WHERE name = 'Parking' AND user_id IS NULL), 10),
+('aparcamiento', 'contains', 'description', (SELECT id FROM categories WHERE name = 'Parking' AND user_id IS NULL), 10);
+
+-- Ropa y calzado (nuevos)
+INSERT INTO categorization_rules (pattern, match_type, field, category_id, priority) VALUES
+('vinted', 'contains', 'description', (SELECT id FROM categories WHERE name = 'Ropa y calzado' AND user_id IS NULL), 10),
+('temu', 'contains', 'description', (SELECT id FROM categories WHERE name = 'Ropa y calzado' AND user_id IS NULL), 10);
+
+-- Compras online
+INSERT INTO categorization_rules (pattern, match_type, field, category_id, priority) VALUES
+('aliexpress', 'contains', 'description', (SELECT id FROM categories WHERE name = 'Electrónica' AND user_id IS NULL), 10);
+
+-- Hogar y decoración
+INSERT INTO categorization_rules (pattern, match_type, field, category_id, priority) VALUES
+('tiger', 'contains', 'description', (SELECT id FROM categories WHERE name = 'Hogar y decoración' AND user_id IS NULL), 10);
+
+-- Mantenimiento hogar (nuevo)
+INSERT INTO categorization_rules (pattern, match_type, field, category_id, priority) VALUES
+('leroy merlin', 'contains', 'description', (SELECT id FROM categories WHERE name = 'Mantenimiento hogar' AND user_id IS NULL), 10);
+
+-- Dentista
+INSERT INTO categorization_rules (pattern, match_type, field, category_id, priority) VALUES
+('dentista', 'contains', 'description', (SELECT id FROM categories WHERE name = 'Dentista' AND user_id IS NULL), 10);
+
+-- Suscripciones tech
+INSERT INTO categorization_rules (pattern, match_type, field, category_id, priority) VALUES
+('cloudflare', 'contains', 'description', (SELECT id FROM categories WHERE name = 'Suscripciones' AND user_id IS NULL), 10),
+('anthropic', 'contains', 'description', (SELECT id FROM categories WHERE name = 'Suscripciones' AND user_id IS NULL), 10),
+('google*workspace', 'contains', 'description', (SELECT id FROM categories WHERE name = 'Suscripciones' AND user_id IS NULL), 10),
+('vercel', 'contains', 'description', (SELECT id FROM categories WHERE name = 'Suscripciones' AND user_id IS NULL), 10);
+
+-- Ahorro e inversiones (nuevo)
+INSERT INTO categorization_rules (pattern, match_type, field, category_id, priority) VALUES
+('inversis', 'contains', 'description', (SELECT id FROM categories WHERE name = 'Ahorro e inversiones' AND user_id IS NULL), 15);
+
+-- Comisiones bancarias
+INSERT INTO categorization_rules (pattern, match_type, field, category_id, priority) VALUES
+('pago transferencias', 'contains', 'description', (SELECT id FROM categories WHERE name = 'Comisiones bancarias' AND user_id IS NULL), 10);
+
+-- Transferencia entre cuentas (nuevo)
+INSERT INTO categorization_rules (pattern, match_type, field, category_id, priority) VALUES
+('propio', 'contains', 'description', (SELECT id FROM categories WHERE name = 'Transferencia entre cuentas' AND user_id IS NULL), 5);
+
+-- Donaciones (nuevas)
+INSERT INTO categorization_rules (pattern, match_type, field, category_id, priority) VALUES
+('hermandad santo sepulcro', 'contains', 'creditor_name', (SELECT id FROM categories WHERE name = 'Donaciones' AND user_id IS NULL), 10),
+('amigos de las ermitas', 'contains', 'creditor_name', (SELECT id FROM categories WHERE name = 'Donaciones' AND user_id IS NULL), 10);
