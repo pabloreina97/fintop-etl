@@ -10,7 +10,7 @@ from supabase import create_client
 from telegram import notify_etl_error, notify_reauth_required
 
 # Cliente HTTP con timeout más largo
-HTTP_CLIENT = httpx.Client(timeout=60.0)
+HTTP_CLIENT = httpx.Client(timeout=120.0)
 
 GOCARDLESS_BASE_URL = "https://bankaccountdata.gocardless.com/api/v2"
 SYNC_OVERLAP_DAYS = 7
@@ -34,7 +34,7 @@ def get_access_token() -> str:
     secret_id = os.environ["GC_SECRET_ID"]
     secret_key = os.environ["GC_SECRET_KEY"]
 
-    response = httpx.post(
+    response = HTTP_CLIENT.post(
         f"{GOCARDLESS_BASE_URL}/token/new/",
         json={"secret_id": secret_id, "secret_key": secret_key},
     )
@@ -131,13 +131,22 @@ def fetch_transactions(token: str, gocardless_account_id: str, date_from: str | 
         from_date = date.fromisoformat(date_from) - timedelta(days=SYNC_OVERLAP_DAYS)
         params["date_from"] = from_date.isoformat()
 
-    response = HTTP_CLIENT.get(
-        f"{GOCARDLESS_BASE_URL}/accounts/{gocardless_account_id}/transactions/",
-        headers={"Authorization": f"Bearer {token}"},
-        params=params,
-    )
-    response.raise_for_status()
-    return response.json()["transactions"]["booked"]
+    url = f"{GOCARDLESS_BASE_URL}/accounts/{gocardless_account_id}/transactions/"
+    headers = {"Authorization": f"Bearer {token}"}
+
+    last_exc = None
+    for attempt in range(3):
+        if attempt > 0:
+            time.sleep(2 ** (attempt - 1))  # backoff: 1s, 2s
+        try:
+            response = HTTP_CLIENT.get(url, headers=headers, params=params)
+            response.raise_for_status()
+            return response.json()["transactions"]["booked"]
+        except httpx.TimeoutException as e:
+            last_exc = e
+            print(f"  Timeout descargando transacciones (intento {attempt + 1}/3)")
+
+    raise last_exc
 
 
 def normalize_transactions(transactions: list) -> list:

@@ -24,7 +24,7 @@ def get_access_token() -> str:
     secret_id = os.environ["GC_SECRET_ID"]
     secret_key = os.environ["GC_SECRET_KEY"]
 
-    response = httpx.post(
+    response = HTTP_CLIENT.post(
         f"{GOCARDLESS_BASE_URL}/token/new/",
         json={"secret_id": secret_id, "secret_key": secret_key},
     )
